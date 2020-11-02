@@ -1,0 +1,68 @@
+apiVersion: maistra.io/v1
+kind: ServiceMeshControlPlane
+metadata:
+  name: basic-install
+  threeScale:
+    enabled: false
+spec:
+  version: v1.1
+  template: default
+  meshConfig:
+    localityLbSetting:
+      enabled: false
+  istio:
+    gateways:
+      istio-egressgateway:
+        autoscaleEnabled: false
+      istio-ingressgateway:
+        autoscaleEnabled: false
+        ior_enabled: false
+    global:
+      controlPlaneSecurityEnabled: false
+      disablePolicyChecks: false
+      mtls:
+        enabled: false
+      multitenant: true
+      policyCheckFailOpen: true
+      proxy:
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+    grafana:
+      enabled: true
+    grafana.enabled: true
+    kiali:
+      enabled: true
+      view_only_mode: false
+    mixer:
+      policy:
+        autoscaleEnabled: false
+      telemetry:
+        autoscaleEnabled: false
+        resources:
+          limits:
+            cpu: 500m
+            memory: 4G
+          requests:
+            cpu: 100m
+            memory: 1G
+    pilot:
+      autoscaleEnabled: false
+      resources:
+        limits:
+          cpu: 500m
+          memory: 4G
+        requests:
+          cpu: 100m
+          memory: 1G
+      traceSampling: 100
+    tracing:
+      enabled: true
+      jaeger:
+        template: all-in-one
+
+
