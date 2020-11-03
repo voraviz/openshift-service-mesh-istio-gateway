@@ -11,7 +11,7 @@ spec:
   - match:
     - headers:
         user-agent:
-          regex: "^Mozilla(.*)"
+          regex: (.*)Firefox(.*)
     route:
     - destination:
         host: frontend
