@@ -4,11 +4,14 @@ kind: ServiceMeshControlPlane
 metadata:
   name: basic-install
 spec:
+  meshConfig:
+    localityLbSetting:
+      enabled: false
   security:
     controlPlane:
-      mtls: false
+      mtls: true
     dataPlane:
-      automtls: false
+      automtls: true
       mtls: false
   tracing:
     sampling: 10000
@@ -45,7 +48,8 @@ spec:
   general:
     logging:
       componentLevels:
-        default: warn
+        default: info
+      logAsJSON: false
   policy:
     mixer:
       enableChecks: true
@@ -71,3 +75,10 @@ spec:
           enabled: false
   telemetry:
     type: Istiod
+  proxy:
+    accessLogging:
+      envoyService:
+        enabled: false
+      file:
+        encoding: TEXT
+        name: /dev/stdout
