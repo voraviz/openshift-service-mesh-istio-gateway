@@ -113,6 +113,7 @@ oc apply -f https://raw.githubusercontent.com/voraviz/openshift-service-mesh-ist
 ```
 - Update frontend virtual service with canary deployment configuration
 ```bash
+SUBDOMAIN=$(oc whoami --show-console  | awk -F'apps.' '{print $2}')
 curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/frontend-virtual-service-canary.yaml |sed 's/SUBDOMAIN/'$SUBDOMAIN'/'|oc apply -n data-plane -f -
 ```
 - Test
@@ -144,17 +145,20 @@ curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-g
   ```
 - Update gateway with TLS
   ```bash
+  SUBDOMAIN=$(oc whoami --show-console  | awk -F'apps.' '{print $2}')
   curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/wildcard-gateway-tls.yaml|sed 's/SUBDOMAIN/'$SUBDOMAIN'/' | oc apply -n control-plane -f -
   ```
 - Update frontend router to passthrough
   ```bash
-   curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/frontend-route-istio-passthrough.yaml |sed 's/SUBDOMAIN/'$SUBDOMAIN'/' | oc apply -n control-plane -f -
+  SUBDOMAIN=$(oc whoami --show-console  | awk -F'apps.' '{print $2}')
+  curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/frontend-route-istio-passthrough.yaml |sed 's/SUBDOMAIN/'$SUBDOMAIN'/' | oc apply -n control-plane -f -
   ```
 - Test
   ```bash
   curl -vk https://$(oc get route frontend -n control-plane -o jsonpath='{.spec.host}')
   ```
 ## Service Mesh v1
+- Example of [Service Mesh Control Plane](smcp-v1-ha.yaml)
 - Create secret
 ```bash
 oc create secret tls istio-ingressgateway-certs  \
@@ -167,10 +171,12 @@ oc patch deployment istio-ingressgateway  \
 ```
 - Update gateway with TLS
   ```bash
+  SUBDOMAIN=$(oc whoami --show-console  | awk -F'apps.' '{print $2}')
   curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/wildcard-gateway-tls-v1.yaml|sed 's/SUBDOMAIN/'$SUBDOMAIN'/' | oc apply -n control-plane -f -
   ```
 - Update frontend router to passthrough
   ```bash
+  SUBDOMAIN=$(oc whoami --show-console  | awk -F'apps.' '{print $2}')
    curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/frontend-route-istio-passthrough.yaml |sed 's/SUBDOMAIN/'$SUBDOMAIN'/' | oc apply -n control-plane -f -
   ```
 - Test
