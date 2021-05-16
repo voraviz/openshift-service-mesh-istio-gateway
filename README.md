@@ -183,3 +183,8 @@ oc patch deployment istio-ingressgateway  \
   ```bash
   curl -vk https://$(oc get route frontend -n control-plane -o jsonpath='{.spec.host}')
   ```
+- Verify certificate in ingress gateway pod
+  ```bash
+  oc exec $(oc get pods --no-headers -l istio=ingressgateway | head -n 1 | awk '{print $1}') -- cat /etc/istio/ingressgateway-certs/tls.crt
+  ```
+  
