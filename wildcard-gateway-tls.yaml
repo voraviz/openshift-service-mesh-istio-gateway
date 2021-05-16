@@ -1,0 +1,17 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: wildcard-gateway
+spec:
+  selector:
+    istio: ingressgateway # use istio default controller
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE # For TLS only use SIMPLE, for mTLS use MUTUAL
+      credentialName: frontend-credential
+    hosts:
+    - '*.apps.SUBDOMAIN'

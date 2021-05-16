@@ -1,34 +1,13 @@
+# https://github.com/maistra/istio-operator/blob/maistra-2.0/pkg/apis/maistra/v2/smcp_new.yaml
 apiVersion: maistra.io/v2
-# Istio 1.6.5
 kind: ServiceMeshControlPlane
 metadata:
   name: basic-install
 spec:
-  meshConfig:
-    localityLbSetting:
-      enabled: false
-  security:
-    controlPlane:
-      mtls: true
-    dataPlane:
-      automtls: true
-      mtls: false
-  tracing:
-    sampling: 10000
-    type: Jaeger
+  version: v2.0
   gateways:
-    egress:
-        enabled: true
-        runtime:
-          container:
-            resources:
-              requests:
-                cpu: 10m
-                memory: 128Mi
-          deployment:
-            autoScaling:
-              enabled: true
-          service: {}
+    openshiftRoute:
+      enabled: false
     ingress:
         enabled: true
         ingress: false
@@ -38,24 +17,38 @@ spec:
               requests:
                 cpu: 10m
                 memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
           deployment:
             autoScaling:
+              maxReplicas: 4
+              minReplicas: 2
+              targetCPUUtilizationPercentage: 85
               enabled: true
+            podDisruption:
+              enabled: false
+            pod:
+              tolerations:
+              - key: node.kubernetes.io/unreachable
+                operator: Exists
+                effect: NoExecute
+                tolerationSeconds: 60
         service:
           type: ClusterIP
-    openshiftRoute:
-      enabled: true
+    egress:
+        enabled: false
   general:
     logging:
       componentLevels:
         default: info
       logAsJSON: false
   policy:
-    mixer:
-      enableChecks: true
-      failOpen: false
-      sessionAffinity: false
-    type: Istiod
+    type: Istiod # or Mixer or Remote, Mixer is default for pre v2.0
+    # istiod:
+    #   enableChecks: false # default false (disablePolicyChecks: true)
+    #   failOpen: false # default false
+    #   sessionAffinity: true
   addons:
     grafana:
       enabled: true
@@ -67,18 +60,50 @@ spec:
       enabled: true
     prometheus:
       enabled: true
-  version: v2.0
   runtime:
+    components:
+      prometheus:                   
+        deployment:
+          replicas: 1
+        podDisruption:
+          enabled: false
+          minAvailable: 1
+        pod:
+          tolerations:
+          - key: node.kubernetes.io/unreachable
+            operator: Exists
+            effect: NoExecute
+            tolerationSeconds: 60        
+      pilot:
+        deployment:
+          replicas: 1
+        podDisruption:
+          enabled: false
+          minAvailable: 1
+        pod:
+          tolerations:
+          - key: node.kubernetes.io/unreachable
+            operator: Exists
+            effect: NoExecute
+            tolerationSeconds: 60
     defaults:
       deployment:
         podDisruption:
           enabled: false
+          minAvailable: 1
   telemetry:
     type: Istiod
   proxy:
+   networking:
+    trafficControl:
+      outbound:
+        policy: ALLOW_ANY # Change to REGISTRY_ONLY for default to block all 
     accessLogging:
       envoyService:
         enabled: false
       file:
         encoding: TEXT
-        name: /dev/stdout
+        name: /dev/stdout 
+tracing:
+  sampling: 10000 # scaled integer, 0-100% in 0.01% increments, i.e. 1=.001%, 100=1%, 10000=100%
+  type: Jaeger
