@@ -181,9 +181,9 @@ oc create -f https://raw.githubusercontent.com/voraviz/openshift-service-mesh-is
     ```
 # Secure with TLS
 ## Service Mesh v2
-- Create cretificate and secret key
+- Create cretificate and secret key using [create-certificate.sh](create-certificate.sh)
   ```bash
-  bin/create-certificate.sh
+  curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/create-certificate.sh | bash /dev/stdin
   ```
 - Create secrets
   ```bash
@@ -211,7 +211,7 @@ oc create -f https://raw.githubusercontent.com/voraviz/openshift-service-mesh-is
 - Create secret
 ```bash
 oc create secret tls istio-ingressgateway-certs  \
---cert certs/frontend.crt --key certs/frontend.key -n control-plane
+--cert certs/tls.crt --key certs/tls.key -n control-plane
 ```
 - Restart ingress gateway
 ```bash
@@ -221,12 +221,12 @@ oc patch deployment istio-ingressgateway  \
 - Update [gateway](wildcard-gateway-tls.yaml) with simple mode TLS
   ```bash
   SUBDOMAIN=$(oc whoami --show-console  | awk -F'apps.' '{print $2}')
-  curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/wildcard-gateway-tls.yaml|sed 's/SUBDOMAIN/'$SUBDOMAIN'/' | oc apply -n control-plane -f -
+  curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/wildcard-gateway-tls-v1.yaml | sed 's/SUBDOMAIN/'$SUBDOMAIN'/' | oc apply -n control-plane -f -
   ```
 - Update [frontend router](frontend-route-istio-passthrough.yaml) to passthrough mode
   ```bash
   SUBDOMAIN=$(oc whoami --show-console  | awk -F'apps.' '{print $2}')
-  curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/frontend-route-istio-passthrough.yaml |sed 's/SUBDOMAIN/'$SUBDOMAIN'/' | oc apply -n control-plane -f -
+  curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/frontend-route-istio-passthrough.yaml | sed 's/SUBDOMAIN/'$SUBDOMAIN'/' | oc apply -n control-plane -f -
   ```
 - Test
   ```bash
