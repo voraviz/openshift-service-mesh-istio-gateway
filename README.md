@@ -1,6 +1,13 @@
 # Istio Gateway with OpenShift Route
-- Deploy application to data plane
-- Create project
+- [Istio Gateway with OpenShift Route](#istio-gateway-with-openshift-route)
+  - [Setup](#setup)
+  - [Istio Ingress Gateway](#istio-ingress-gateway)
+    - [Canary Deployment](#canary-deployment)
+- [Secure with TLS](#secure-with-tls)
+  - [Service Mesh v2](#service-mesh-v2)
+  - [Service Mesh v1](#service-mesh-v1)
+
+## Setup
   ```bash
   oc new-project data-plane --display-name="Data Plane"
   ```
@@ -52,7 +59,7 @@
   ```bash
   oc get networkpolicy/istio-expose-route-basic-install -n data-plane -o yaml
   ```
-- Network policy istio-expose-route
+- Network policy istio-expose-route is automatically added to allow traffic of OpenShift's router pod to only pod with label *maistra.io/expose-route: "true"*
   ```yaml
   spec:
     ingress:
@@ -78,7 +85,7 @@
   ```
 ## Istio Ingress Gateway
 
-**Remark: replace SUBDOMAIN with your cluster's subdomain.**
+**Remark: You need to replace SUBDOMAIN with your cluster subdomain in every yaml files**
 
 - Create gateway in control-plane
 ```bash
@@ -107,27 +114,69 @@ Deploy frontend v2 and configure canary deployment to route only request from Fi
 ```bash
 oc create -f https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/frontend-v2-deployment.yaml -n data-plane
 ```
-- Create Destination for frontend v1 and v2
-```bash
-oc apply -f https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/frontend-destination-rule.yaml -n data-plane
-```
-- Update frontend virtual service with canary deployment configuration
-```bash
-SUBDOMAIN=$(oc whoami --show-console  | awk -F'apps.' '{print $2}')
-curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/frontend-virtual-service-canary.yaml |sed 's/SUBDOMAIN/'$SUBDOMAIN'/'|oc apply -n data-plane -f -
-```
+- Create [destination rule](frontend-destination-rule.yaml) with subgroup based on version
+  ```yaml
+  subsets:
+  - name: v1
+    labels:
+      app: frontend
+      version: v1
+    trafficPolicy:
+      loadBalancer:
+        simple: ROUND_ROBIN
+  - name: v2
+    labels:
+      app: frontend
+      version: v2
+    trafficPolicy:
+      loadBalancer:
+        simple: ROUND_ROBIN
+  ```
+  Create destination rule
+  ```bash
+  oc apply -f https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/frontend-destination-rule.yaml -n data-plane
+  ```
+- Update [frontend virtual service](frontend-virtual-service-canary.yaml) with to routing by header
+  ```yaml
+    http:
+  - match:
+    - headers:
+        user-agent:
+          regex: (.*)Firefox(.*)
+    route:
+    - destination:
+        host: frontend
+        port:
+          number: 8080
+        subset: v2
+  - route:
+    - destination:
+        host: frontend
+        port:
+          number: 8080
+        subset: v1
+  ```
+  Create virtual service
+  ```bash
+  SUBDOMAIN=$(oc whoami --show-console  | awk -F'apps.' '{print $2}')
+  curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/frontend-virtual-service-canary.yaml |sed 's/SUBDOMAIN/'$SUBDOMAIN'/'|oc apply -n data-plane -f -
+  ```
 - Test
   - Set User-Agent to Firefox
     ```bash
     #Test with header User-Agent contains "Firefox"
     curl -H "User-Agent:Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:78.0) Gecko/20100101 Firefox/78.0" $(oc get route frontend -n control-plane -o jsonpath='{.spec.host}')
-    #You will get response from frontend-v2
+    ```
+    Output
+    ```
     Frontend version: v2 => [Backend: http://backend:8080, Response: 200, Body: Backend version:v1, Response:200, Host:backend-v1-5c45fb5d76-gg8sc, Status:200, Message: Hello, Quarkus]
     ```
   - Set User-Agent to Chrome
     ```bash
     curl -H "User-Agent:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36 Edg/79.0.309.71" $(oc get route frontend -n control-plane -o jsonpath='{.spec.host}')
-    #You will get response from frontend-v1
+    ```
+    Output
+    ```
     Frontend version: v1 => [Backend: http://backend:8080, Response: 200, Body: Backend version:v1, Response:200, Host:backend-v1-5c45fb5d76-gg8sc, Status:200, Message: Hello, Quarkus]
     ```
 # Secure with TLS
@@ -143,12 +192,12 @@ curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-g
   --from-file=tls.crt=certs/frontend.crt \
   -n control-plane
   ```
-- Update gateway with TLS
+- Update [gateway](wildcard-gateway-tls.yaml) with simple mode TLS
   ```bash
   SUBDOMAIN=$(oc whoami --show-console  | awk -F'apps.' '{print $2}')
   curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/wildcard-gateway-tls.yaml|sed 's/SUBDOMAIN/'$SUBDOMAIN'/' | oc apply -n control-plane -f -
   ```
-- Update frontend router to passthrough
+- Update [frontend router](frontend-route-istio-passthrough.yaml) to passthrough mode
   ```bash
   SUBDOMAIN=$(oc whoami --show-console  | awk -F'apps.' '{print $2}')
   curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/frontend-route-istio-passthrough.yaml |sed 's/SUBDOMAIN/'$SUBDOMAIN'/' | oc apply -n control-plane -f -
@@ -169,15 +218,15 @@ oc create secret tls istio-ingressgateway-certs  \
 oc patch deployment istio-ingressgateway  \
 -p '{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt": "'`date +%FT%T%z`'"}}}}}' -n control-plane
 ```
-- Update gateway with TLS
+- Update [gateway](wildcard-gateway-tls.yaml) with simple mode TLS
   ```bash
   SUBDOMAIN=$(oc whoami --show-console  | awk -F'apps.' '{print $2}')
-  curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/wildcard-gateway-tls-v1.yaml|sed 's/SUBDOMAIN/'$SUBDOMAIN'/' | oc apply -n control-plane -f -
+  curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/wildcard-gateway-tls.yaml|sed 's/SUBDOMAIN/'$SUBDOMAIN'/' | oc apply -n control-plane -f -
   ```
-- Update frontend router to passthrough
+- Update [frontend router](frontend-route-istio-passthrough.yaml) to passthrough mode
   ```bash
   SUBDOMAIN=$(oc whoami --show-console  | awk -F'apps.' '{print $2}')
-   curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/frontend-route-istio-passthrough.yaml |sed 's/SUBDOMAIN/'$SUBDOMAIN'/' | oc apply -n control-plane -f -
+  curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/frontend-route-istio-passthrough.yaml |sed 's/SUBDOMAIN/'$SUBDOMAIN'/' | oc apply -n control-plane -f -
   ```
 - Test
   ```bash
