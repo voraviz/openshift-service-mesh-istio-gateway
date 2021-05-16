@@ -154,3 +154,26 @@ curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-g
   ```bash
   curl -vk https://$(oc get route frontend -n control-plane -o jsonpath='{.spec.host}')
   ```
+## Service Mesh v1
+- Create secret
+```bash
+oc create secret tls istio-ingressgateway-certs  \
+--cert certs/frontend.crt --key certs/frontend.key -n control-plane
+```
+- Restart ingress gateway
+```bash
+oc patch deployment istio-ingressgateway  \
+-p '{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt": "'`date +%FT%T%z`'"}}}}}' -n control-plane
+```
+- Update gateway with TLS
+  ```bash
+  curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/wildcard-gateway-tls-v1.yaml|sed 's/SUBDOMAIN/'$SUBDOMAIN'/' | oc apply -n control-plane -f -
+  ```
+- Update frontend router to passthrough
+  ```bash
+   curl -s https://raw.githubusercontent.com/voraviz/openshift-service-mesh-istio-gateway/main/frontend-route-istio-passthrough.yaml |sed 's/SUBDOMAIN/'$SUBDOMAIN'/' | oc apply -n control-plane -f -
+  ```
+- Test
+  ```bash
+  curl -vk https://$(oc get route frontend -n control-plane -o jsonpath='{.spec.host}')
+  ```
