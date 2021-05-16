@@ -12,7 +12,7 @@ spec:
       protocol: HTTPS
     tls:
       mode: SIMPLE # For TLS only use SIMPLE, for mTLS use MUTUAL
-      privateKey: /etc/istio/ingressgateway-certs/frontend.key
-      serverCertificate: /etc/istio/ingressgateway-certs/frontend.crt
+      privateKey: /etc/istio/ingressgateway-certs/tls.key
+      serverCertificate: /etc/istio/ingressgateway-certs/tls.crt
     hosts:
     - '*.apps.SUBDOMAIN'
